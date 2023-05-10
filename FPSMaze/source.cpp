@@ -50,6 +50,13 @@ public:
 		map += L"################################";
 
 		spriteWall = new olcSprite(L"FPSSprites/fps_wall1.spr");
+		spriteLamp = new olcSprite(L"FPSSprites/fps_lamp1.spr");
+
+		listObjects = {
+			{8.5f, 8.5f, spriteLamp},
+			{7.5f, 7.5f, spriteLamp},
+			{10.5f, 10.5f, spriteLamp}
+		};
 
 		return true;
 	}
@@ -179,6 +186,52 @@ public:
 			}
 		}
 
+		// update and draw objects
+		for (auto &object : listObjects)
+		{
+			// can object be seen
+			float fVecX = object.x - fPlayerX;
+			float fVecY = object.y - fPlayerY;
+			float fDistanceFromPlayer = sqrtf(fVecX * fVecX + fVecY * fVecY);
+
+			float fEyeX = sinf(fPlayerA);
+			float fEyeY = cosf(fPlayerA);
+
+			float fObjectAngle = atan2f(fEyeY, fEyeX) - atan2f(fVecY, fVecX);
+			if (fObjectAngle < -3.14159f)
+				fObjectAngle += 2.0f * 3.14159f;
+			if (fObjectAngle > 3.14159f)
+				fObjectAngle -= 2.0f * 3.14159f;
+
+			bool bInPlayerFOV = fabs(fObjectAngle) < fFOV / 2.0f;
+
+			if (bInPlayerFOV && fDistanceFromPlayer >= 0.5f && fDistanceFromPlayer < fDepth)
+			{
+				float fObjectCeiling = (float)(ScreenHeight() / 2.0) - ScreenHeight() / ((float)fDistanceFromPlayer);
+				float fObjectFloor = ScreenHeight() - fObjectCeiling;
+				float fObjectHeight = fObjectFloor - fObjectCeiling;
+				float fObjectAspectRatio = (float)object.sprite->nHeight / (float)object.sprite->nWidth;
+				float fObjectWidth = fObjectHeight / fObjectAspectRatio;
+
+				float fMiddleOfObject = (0.5f * (fObjectAngle / (fFOV / 2.0f)) + 0.5f) * (float)ScreenWidth();
+
+				for (float lx = 0; lx < fObjectWidth; lx++)
+				{
+					for (float ly = 0; ly < fObjectHeight; ly++)
+					{
+						float fSampleX = lx / fObjectWidth;
+						float fSampleY = ly / fObjectHeight;
+						wchar_t c = object.sprite->SampleGlyph(fSampleX, fSampleY);
+						int nObjectColumn = (int)(fMiddleOfObject + lx - (fObjectWidth / 2.0f));
+
+						if (nObjectColumn >= 0 && nObjectColumn < ScreenWidth())
+							Draw(nObjectColumn, fObjectCeiling + ly, c, object.sprite->SampleColour(fSampleX, fSampleY));
+					}
+				}
+			}
+		}
+
+		// Display map
 		for (int nx = 0; nx < nMapWidth; nx++)
 			for (int ny = 0; ny < nMapWidth; ny++)
 				Draw(nx + 1, ny + 1, map[ny * nMapWidth + nx]);
@@ -199,13 +252,14 @@ private:
 	float fDepth = 16.0f;			
 	float fSpeed = 5.0f;
 
-	olcSprite *spriteWall;
+	olcSprite* spriteWall;
+	olcSprite* spriteLamp;
 
 	struct sObject
 	{
 		float x;
 		float y;
-		olcSprite *sprite;
+		olcSprite* sprite;
 	};
 
 	list<sObject> listObjects;
