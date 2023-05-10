@@ -200,6 +200,15 @@ private:
 	float fSpeed = 5.0f;
 
 	olcSprite *spriteWall;
+
+	struct sObject
+	{
+		float x;
+		float y;
+		olcSprite *sprite;
+	};
+
+	list<sObject> listObjects;
 };
 
 int main()
