@@ -51,11 +51,14 @@ public:
 
 		spriteWall = new olcSprite(L"FPSSprites/fps_wall1.spr");
 		spriteLamp = new olcSprite(L"FPSSprites/fps_lamp1.spr");
+		spriteFireBall = new olcSprite(L"FPSSprites/fps_fireball1.spr");
+
+		fDepthBuffer = new float[ScreenWidth()];
 
 		listObjects = {
-			{8.5f, 8.5f, spriteLamp},
-			{7.5f, 7.5f, spriteLamp},
-			{10.5f, 10.5f, spriteLamp}
+			{8.5f, 8.5f, 0.0f, 0.0f, false, spriteLamp},
+			{7.5f, 7.5f, 0.0f, 0.0f, false, spriteLamp},
+			{10.5f, 10.5f, 0.0f, 0.0f, false, spriteLamp}
 		};
 
 		return true;
@@ -114,6 +117,21 @@ public:
 			}
 		}
 
+		if (m_keys[VK_SPACE].bReleased)
+		{
+			sObject o;
+			o.x = fPlayerX;
+			o.y = fPlayerY;
+
+			float fNoise = (((float)rand() / (float)RAND_MAX) - 0.5f) * 0.1f;
+			o.vx = sinf(fPlayerA + fNoise) * 8.0f;
+			o.vy = cosf(fPlayerA + fNoise) * 8.0f;
+
+			o.sprite = spriteFireBall;
+			o.bRemove = false;
+			listObjects.push_back(o);
+		}
+
 		for (int x = 0; x < ScreenWidth(); x++)
 		{
 			float fRayAngle = (fPlayerA - fFOV / 2.0f) + ((float)x / (float)ScreenWidth()) * fFOV;
@@ -163,6 +181,8 @@ public:
 			int nCeiling = (float)(ScreenHeight() / 2.0) - ScreenHeight() / ((float)fDistanceToWall);
 			int nFloor = ScreenHeight() - nCeiling;
 
+			fDepthBuffer[x] = fDistanceToWall;
+
 			for (int y = 0; y < ScreenHeight(); y++)
 			{
 				// Each Row
@@ -189,6 +209,12 @@ public:
 		// update and draw objects
 		for (auto &object : listObjects)
 		{
+			object.x += object.vx * fElapsedTime;
+			object.y += object.vy * fElapsedTime;
+
+			if (map.c_str()[(int)object.x * nMapWidth + (int)object.y] == '#')
+				object.bRemove = true;
+
 			// can object be seen
 			float fVecX = object.x - fPlayerX;
 			float fVecY = object.y - fPlayerY;
@@ -225,11 +251,17 @@ public:
 						int nObjectColumn = (int)(fMiddleOfObject + lx - (fObjectWidth / 2.0f));
 
 						if (nObjectColumn >= 0 && nObjectColumn < ScreenWidth())
-							Draw(nObjectColumn, fObjectCeiling + ly, c, object.sprite->SampleColour(fSampleX, fSampleY));
+						{
+							if (c != L' ' && fDepthBuffer[nObjectColumn] >= fDistanceFromPlayer)
+								Draw(nObjectColumn, fObjectCeiling + ly, c, object.sprite->SampleColour(fSampleX, fSampleY));
+							fDepthBuffer[nObjectColumn] = fDistanceFromPlayer;
+						}
 					}
 				}
 			}
 		}
+
+		listObjects.remove_if([](sObject &o) {return o.bRemove; });
 
 		// Display map
 		for (int nx = 0; nx < nMapWidth; nx++)
@@ -254,11 +286,18 @@ private:
 
 	olcSprite* spriteWall;
 	olcSprite* spriteLamp;
+	olcSprite* spriteFireBall;
+
+	float* fDepthBuffer = nullptr;
 
 	struct sObject
 	{
 		float x;
 		float y;
+		float vx;
+		float vy;
+		bool bRemove;
+
 		olcSprite* sprite;
 	};
 
